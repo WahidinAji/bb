@@ -86,14 +86,18 @@ You can run bb on an always-on machine, such as a home server, NAS, mini PC, or
 VM, and use it from your laptop or phone. That machine stores your threads and
 settings and runs the agents, so your laptop can sleep without stopping work.
 
-1. On the server, install Node.js, Git, and at least one provider CLI (for
-   example Claude Code or Codex), then sign in to the provider there. bb uses
-   the server's provider credentials, not your laptop's.
+1. On the server, install Node.js, Git, [pnpm](https://pnpm.io/installation)
+   10 or later, and at least one provider CLI (for example Claude Code or
+   Codex), then sign in to the provider there. bb uses the server's provider
+   credentials, not your laptop's.
 2. Clone or copy your repositories onto the server.
-3. Install and start bb:
+3. Install and start bb. `pnpm setup` adds pnpm's global bin directory to your
+   shell's `PATH`; open a new shell after running it. The `--allow-build` flags
+   let pnpm build bb's native add-ons:
 
    ```bash
-   npm install -g --allow-scripts=better-sqlite3,node-pty,@parcel/watcher bb-app
+   pnpm setup
+   pnpm add -g --allow-build=better-sqlite3 --allow-build=node-pty --allow-build=@parcel/watcher bb-app
    bb-app
    ```
 
@@ -109,6 +113,7 @@ Description=bb
 After=network-online.target
 
 [Service]
+Environment=PATH=%h/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/bin/env bb-app
 Restart=on-failure
 
@@ -124,8 +129,10 @@ systemctl --user enable --now bb
 sudo loginctl enable-linger "$USER"
 ```
 
-If `bb-app` or your provider CLIs live under a version manager such as nvm,
-add `Environment=PATH=...` with that directory to the `[Service]` section.
+systemd does not read your shell profile, so `PATH` must list every directory
+bb needs. `%h/.local/share/pnpm` is pnpm's default global bin directory on
+Linux; run `pnpm bin -g` to find yours. If Node.js or your provider CLIs live
+elsewhere, such as under nvm or `~/.local/bin`, add those directories too.
 Follow logs with
 `tail -F ~/.bb/logs/server-stdio.log ~/.bb/logs/host-daemon-stdio.log`.
 
