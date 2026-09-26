@@ -80,6 +80,95 @@ For install requirements, provider setup, configuration, and package-focused
 docs, start with
 [`packages/bb-app`](./packages/bb-app/README.md).
 
+### Run bb on a server or homelab
+
+You can run bb on an always-on machine, such as a home server, NAS, mini PC, or
+VM, and use it from your laptop or phone. That machine stores your threads and
+settings and runs the agents, so your laptop can sleep without stopping work.
+
+1. On the server, install Node.js, Git, and at least one provider CLI (for
+   example Claude Code or Codex), then sign in to the provider there. bb uses
+   the server's provider credentials, not your laptop's.
+2. Clone or copy your repositories onto the server.
+3. Install and start bb:
+
+   ```bash
+   npm install -g --allow-scripts=better-sqlite3,node-pty,@parcel/watcher bb-app
+   bb-app
+   ```
+
+   bb listens on `127.0.0.1:38886` by default, so nothing is exposed to your
+   network until you choose an access route below.
+
+To keep bb running after you log out on a Linux server, run it as a systemd
+user service. Create `~/.config/systemd/user/bb.service`:
+
+```ini
+[Unit]
+Description=bb
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/env bb-app
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+Then enable it:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now bb
+sudo loginctl enable-linger "$USER"
+```
+
+If `bb-app` or your provider CLIs live under a version manager such as nvm,
+add `Environment=PATH=...` with that directory to the `[Service]` section.
+Follow logs with
+`tail -F ~/.bb/logs/server-stdio.log ~/.bb/logs/host-daemon-stdio.log`.
+
+Choose one way to reach the server from your other devices:
+
+- **bb connect (easiest, works anywhere).** Claim a handle at
+  [getbb.app](https://getbb.app), then pair from the server with the command it
+  gives you, or from Settings → Remote access:
+
+  ```bash
+  bb connect --code <code> --server https://<handle>.getbb.app
+  ```
+
+  Open `https://<handle>.getbb.app` on your laptop or phone and sign in with
+  the account that paired the server. The server keeps the tunnel up and
+  reconnects after restarts.
+
+- **Tailscale (private network).** Install Tailscale on the server and each
+  device, then on the server run:
+
+  ```bash
+  tailscale serve --bg --https=443 http://127.0.0.1:38886
+  bb-app config set BB_APP_URL https://<machine>.<tailnet>.ts.net
+  ```
+
+  Open `https://<machine>.<tailnet>.ts.net` from any device on your tailnet.
+  Never publish bb with Tailscale Funnel.
+
+- **Direct LAN access (trusted networks only).** `bb-app --server-bind-host
+0.0.0.0` makes bb reachable at `http://<server-ip>:38886`. The bb API is
+  unauthenticated and can run commands and read files, so use this only on a
+  network where you trust every device, and never forward the port to the
+  internet.
+
+On a phone, open the same URL in the browser, or use the bb mobile app: pair
+the server with bb connect, turn on the **Mobile app** experiment in Settings →
+Experiments, then choose Settings → Remote access → **Add mobile device** and
+scan the QR code in the app.
+
+For editor integration, adding more execution machines, and pointing the
+desktop app at a remote server, see
+[Using bb on multiple devices](docs/multiple-devices.md).
+
 ### Telemetry
 
 Production runs (the desktop app and `npx bb-app`) send anonymous usage
